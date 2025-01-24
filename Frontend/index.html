@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <title>REST API Template</title>
+</head>
+<body>
+    <div class="container py-5" id="app">
+        <!-- Header -->
+        <h1 class="text-center mb-4">Chairs Management</h1>
+
+        <!-- Filtering -->
+        <div class="mb-5">
+            <h2 class="mb-3">Filter Chairs</h2>
+            <div class="row g-3 align-items-center">
+
+                <!-- Filter by Model -->
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <input v-model="filterModel" @keyup.enter="filterByModel(filterModel)" placeholder="Model" type="text" class="form-control">
+                        <button @click="filterByModel(filterModel)" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
+
+                <!-- Filter by Max Weight -->
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <input v-model="filterMaxWeight" @keyup.enter="filterByMaxWeight" placeholder="Max Weight" type="number" class="form-control">
+                        <button @click="filterByMaxWeight" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="mb-5">
+            <h2 class="mb-3">Chairs Table</h2>
+            <table v-if="filteredChairs.length > 0" class="table table-hover table-bordered text-center">
+
+                <!-- Table Header -->
+                <thead class="table-dark">
+                    <tr>
+                        <th class="text-center align-middle" style="width: 15%;">
+                            <button @click="sortBy('id')" class="btn btn-link text-light text-decoration-none">
+                                Id
+                                <span v-if="sortColumn === 'id'">
+                                    <i :class="sortDirection === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                </span>
+                            </button>
+                        </th>
+                        <th class="text-center align-middle" style="width: 25%;">
+                            <button @click="sortBy('model')" class="btn btn-link text-light text-decoration-none">
+                                Model
+                                <span v-if="sortColumn === 'model'">
+                                    <i :class="sortDirection === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                </span>
+                            </button>
+                        </th>
+                        <th class="text-center align-middle" style="width: 25%;">
+                            <button @click="sortBy('maxWeight')" class="btn btn-link text-light text-decoration-none">
+                                Max Weight
+                                <span v-if="sortColumn === 'maxWeight'">
+                                    <i :class="sortDirection === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                                </span>
+                            </button>
+                        </th>
+                        <th class="text-center align-middle" style="width: 20%;">Has Pillow</th>
+                        <th class="text-center align-middle" style="width: 15%;">Actions</th>
+                    </tr>
+                </thead>
+
+                <!-- Table Body -->
+                <tbody>
+                    <tr v-for="chair in filteredChairs" :key="chair.id">
+                        <td v-for="(value, key) in chair" :key="key">{{ value }}</td>
+                        <td>
+                            <button @click="populateUpdateChair(chair)" class="btn btn-warning btn-sm me-2">Edit</button>
+                            <button @click="deleteChair(chair.id)" class="btn btn-danger btn-sm">Delete</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p v-else class="text-muted">No chairs available.</p>
+        </div>
+
+        <!-- List -->
+         <div class="mb-5">
+            <h2>Chairs List</h2>
+            <ul v-if="filteredChairs.length > 0" id="chairsList">
+                <li v-for="chair in filteredChairs" :key="chair.id">
+                    <button @click="populateUpdateChair(chair)" class="btn btn-warning btn-sm me-2">Edit</button>
+                    <button @click="deleteChair(chair.id)" class="btn btn-danger btn-sm">Delete</button>
+                    {{ chair.model }} - Max Weight: {{ chair.maxWeight }} kg - Has Pillow: {{ chair.hasPillow ? 'Yes' : 'No' }}
+                </li>
+            </ul>
+            <p v-else class="text-muted">No chairs available.</p>
+         </div>
+
+        <!-- Update Element -->
+        <div class="mb-5" v-if="showUpdate">
+            <h2>Update Chair</h2>
+            <form class="row g-3">
+                <div class="visually-hidden">
+                    <label>ID</label>
+                    <input v-model="updateData.id" type="number" readonly class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label>Model</label>
+                    <input v-model="updateData.model" type="text" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label>Max Weight</label>
+                    <input v-model="updateData.maxWeight" type="number" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label for="updateHasPillow" class="form-check-label">Has Pillow</label>
+                    <div class="form-check mt-2">
+                        <input id="updateHasPillow" v-model="updateData.hasPillow" type="checkbox"
+                            class="form-check-input" style="transform: scale(1.5);">
+                    </div>
+                </div>
+                <div class="col-12">
+                    <button @click="updateChair()" type="button" class="btn btn-primary">Update Chair</button>
+                </div>
+            </form>
+            <div class="mt-3 text-success">{{ updateMessage }}</div>
+        </div>
+
+        <!-- Add New Element -->
+        <div class="mb-5">
+            <h2 class="mb-3">Add Chair</h2>
+            <form class="row g-3">
+                <div class="col-md-4">
+                    <label for="addModel" class="form-label">Model</label>
+                    <input id="addModel" v-model="addData.model" type="text" class="form-control" placeholder="Enter model">
+                </div>
+                <div class="col-md-4">
+                    <label for="addMaxWeight" class="form-label">Max Weight</label>
+                    <input id="addMaxWeight" v-model="addData.maxWeight" type="number" class="form-control" placeholder="Enter max weight">
+                </div>
+                <div class="col-md-4">
+                    <label for="addHasPillow" class="form-check-label">Has Pillow</label>
+                    <div class="form-check mt-2">
+                        <input id="addHasPillow" v-model="addData.hasPillow" type="checkbox"
+                        class="form-check-input"
+                        style="transform: scale(1.5);">
+                    </div>
+                </div>
+                <div class="col-12">
+                    <button id="addButton" type="button" @click="addChair()" class="btn btn-primary">Add Chair</button>
+                </div>
+            </form>
+            <div class="mt-3 text-success">{{ addMessage }}</div>
+        </div>
+    </div>
+
+    <script src="index.js"></script>
+</body>
+</html>
